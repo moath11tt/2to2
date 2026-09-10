@@ -2,235 +2,426 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>محادثة صوتية مباشرة</title>
-  <!-- مكتبة PeerJS للاتصال المباشر بين جهازين -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>جهاز لاسلكي احترافي</title>
+  <!-- مكتبة PeerJS للاتصال المباشر -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Courier New', Courier, monospace, system-ui;
+    }
+
     body {
-      background-color: #f4f6f9;
+      background-color: #121417;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       margin: 0;
       padding: 20px;
+      color: #e2e8f0;
     }
-    .card {
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+
+    /* هيكل الجهاز اللاسلكي */
+    .radio-body {
+      background: linear-gradient(145deg, #2b3036, #1c2024);
+      border: 4px solid #3a4149;
+      border-radius: 40px;
       width: 100%;
-      max-width: 420px;
-      text-align: center;
+      max-width: 360px;
+      padding: 30px 20px 40px 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 2px 3px rgba(255,255,255,0.1);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    h2 { color: #1e293b; margin-bottom: 20px; }
-    .id-box {
-      background: #eff6ff;
-      border: 1px border #bfdbfe;
-      padding: 12px;
-      border-radius: 8px;
+
+    /* الهوائي العلوي (Antenna) */
+    .antenna {
+      position: absolute;
+      top: -60px;
+      right: 40px;
+      width: 16px;
+      height: 70px;
+      background: linear-gradient(90deg, #111, #444, #111);
+      border-radius: 8px 8px 0 0;
+      z-index: -1;
+    }
+    .antenna::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: -2px;
+      width: 20px;
+      height: 12px;
+      background: #000;
+      border-radius: 4px;
+    }
+
+    /* زر الصوت/القدرة العلوي */
+    .knob {
+      position: absolute;
+      top: -25px;
+      left: 40px;
+      width: 35px;
+      height: 30px;
+      background: repeating-linear-gradient(90deg, #222, #222 2px, #444 3px, #444 5px);
+      border-radius: 6px 6px 0 0;
+      z-index: -1;
+    }
+
+    /* شاشة LCD الرقمية */
+    .screen-container {
+      background: #0f2417;
+      border: 4px solid #1a1d21;
+      border-radius: 12px;
+      width: 100%;
+      padding: 15px;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+      margin-bottom: 25px;
+      position: relative;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #4ade80;
+      opacity: 0.8;
+      margin-bottom: 5px;
       font-weight: bold;
-      color: #1d4ed8;
-      font-size: 1.2rem;
-      margin-bottom: 20px;
-      word-break: break-all;
     }
-    input {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      font-size: 1rem;
-      margin-bottom: 15px;
+
+    .channel-display {
+      font-size: 2.2rem;
+      color: #22c55e;
       text-align: center;
+      text-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+      font-weight: bold;
+      letter-spacing: 2px;
+      margin: 5px 0;
     }
-    button {
+
+    .status-line {
+      font-size: 0.8rem;
+      color: #86efac;
+      text-align: center;
+      min-height: 20px;
+    }
+
+    /* إدخال رقم القناة المشترك */
+    .controls {
       width: 100%;
+      margin-bottom: 25px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    input {
+      flex: 1;
+      background: #17191c;
+      border: 2px solid #334155;
+      color: #f8fafc;
       padding: 12px;
-      background-color: #2563eb;
-      color: white;
-      border: none;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 1.2rem;
+      text-align: center;
+      font-weight: bold;
+      letter-spacing: 2px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #22c55e;
+    }
+
+    .action-btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 0 18px;
+      border-radius: 8px;
       font-weight: bold;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
-    button:hover { background-color: #1d4ed8; }
-    button:disabled { background-color: #94a3b8; cursor: not-allowed; }
-    .status {
-      margin-top: 15px;
-      font-size: 0.9rem;
-      color: #64748b;
+
+    .action-btn:hover { background: #475569; }
+
+    /* فتحات السماعة والمايك المكبرة */
+    .speaker-grille {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 80%;
+      margin: 10px 0 25px 0;
+      opacity: 0.4;
     }
-    .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #ffffff;
+
+    .grille-line {
+      height: 4px;
+      background: #000;
+      border-bottom: 1px solid #444;
+      border-radius: 2px;
+    }
+
+    /* زر PTT (Push To Talk) الاحترافي */
+    .ptt-button {
+      width: 130px;
+      height: 130px;
       border-radius: 50%;
-      border-top-color: transparent;
-      animation: spin 0.8s linear infinite;
-      margin-left: 8px;
-      vertical-align: middle;
+      background: radial-gradient(circle, #ef4444 0%, #dc2626 60%, #991b1b 100%);
+      border: 6px solid #1e293b;
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 900;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 8px 0 #7f1d1d, 0 15px 25px rgba(0,0,0,0.5);
+      cursor: pointer;
+      transition: all 0.1s ease;
+      outline: none;
+      margin-bottom: 10px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .ptt-button:active, .ptt-button.active {
+      transform: translateY(6px);
+      box-shadow: 0 2px 0 #7f1d1d, 0 5px 10px rgba(0,0,0,0.5);
+      background: radial-gradient(circle, #22c55e 0%, #16a34a 60%, #15803d 100%);
+    }
+
+    .ptt-subtext {
+      font-size: 0.65rem;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+
+    /* مؤشر الحالة الضوئي (LED) */
+    .led-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #475569;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .led-indicator.online { background-color: #eab308; box-shadow: 0 0 8px #eab308; }
+    .led-indicator.connected { background-color: #22c55e; box-shadow: 0 0 10px #22c55e; }
+    .led-indicator.transmitting { background-color: #ef4444; box-shadow: 0 0 12px #ef4444; }
   </style>
 </head>
 <body>
 
-<div class="card">
-  <h2>محادثة صوتية مباشرة</h2>
+<div class="radio-body">
+  <div class="antenna"></div>
+  <div class="knob"></div>
 
-  <!-- المعرّف الخاص باللجهاز الحالي -->
-  <p>رقم معرّف هذا الجهاز:</p>
-  <div id="my-id" class="id-box">جاري توليد الرقم...</div>
+  <!-- شاشة اللاسلكي -->
+  <div class="screen-container">
+    <div class="screen-header">
+      <span>CH-FREQ</span>
+      <div id="led" class="led-indicator"></div>
+      <span>P2P WIRELESS</span>
+    </div>
+    <div id="channel-num" class="channel-display">CH --</div>
+    <div id="status-text" class="status-line">أدخل رقم القناة</div>
+  </div>
 
-  <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+  <!-- لوحة ضبط القناة المشتركة -->
+  <div class="controls">
+    <label style="font-size: 0.75rem; color: #94a3b8; font-weight: bold;">رقم القناة المشترك (أدخل نفس الرقم بالجهازين):</label>
+    <div class="input-group">
+      <input type="number" id="channel-input" placeholder="مثال: 555" min="1" max="9999">
+      <button class="action-btn" onclick="joinChannel()">تأكيد</button>
+    </div>
+  </div>
 
-  <!-- إدخال رقم الجهاز الآخر -->
-  <p>أدخل رقم الجهاز الآخر للاتصال:</p>
-  <input type="text" id="peer-id-input" placeholder="أدخل الرقم هنا...">
-  
-  <button id="connect-btn" onclick="makeCall()">اتصال</button>
+  <!-- فتحات السماعة -->
+  <div class="speaker-grille">
+    <div class="grille-line"></div>
+    <div class="grille-line"></div>
+    <div class="grille-line"></div>
+    <div class="grille-line"></div>
+  </div>
 
-  <div id="status" class="status">جاهز للاتصال</div>
+  <!-- زر التحدث اللاسلكي (PTT) -->
+  <button id="ptt-btn" class="ptt-button" disabled>
+    <span>TALK</span>
+    <span class="ptt-subtext">اضغط للتحدث</span>
+  </button>
 </div>
 
-<!-- عنصر الصوت للمكالمة الواردة -->
+<!-- عنصر الصوت لاستقبال الصوت من الطرف الآخر -->
 <audio id="remote-audio" autoplay></audio>
 
 <script>
   let localStream = null;
   let peer = null;
-
-  const myIdEl = document.getElementById('my-id');
-  const statusEl = document.getElementById('status');
-  const connectBtn = document.getElementById('connect-btn');
+  let activeCall = null;
+  let currentChannel = null;
+  
+  const channelInput = document.getElementById('channel-input');
+  const channelDisplay = document.getElementById('channel-num');
+  const statusText = document.getElementById('status-text');
+  const pttBtn = document.getElementById('ptt-btn');
+  const led = document.getElementById('led');
   const remoteAudio = document.getElementById('remote-audio');
 
-  // 1. طلب صلاحيات المايكروفون عند فتح الصفحة
+  // 1. طلب الوصول للمايكروفون عند التشغيل
   async function initMedia() {
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      statusEl.innerText = "تم الوصول للمايكروفون بنجاح.";
-      initPeer();
+      // كتم صوت المايك المحلي افتراضياً ليصبح كاللاسلكي (تفتح الصوت فقط عند الضغط)
+      setMicState(false);
+      statusText.innerText = "جاهز. أدخل رقم القناة.";
     } catch (err) {
-      console.error("خطأ في الوصول للمايكروفون:", err);
-      statusEl.innerText = "خطأ: يرجى السماح بالوصول للمايكروفون ليعمل الصوت.";
+      console.error(err);
+      statusText.innerText = "خطأ: يرجى السماح بالمايكروفون";
     }
   }
 
-  // 2. إنشاء الاتصال بالسيرفر وتوليد معرّف عشوائي مقروء
-  function initPeer() {
-    // إنشاء رقم عشوائي مكون من 5 أرقام لتسهيل الإدخال
-    const customId = Math.floor(10000 + Math.random() * 90000).toString();
-    
-    peer = new Peer(customId, {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
+  // 2. الإنضمام للقناة المشتركة (تعتمد على تحديد ID الجهازين تلقائياً)
+  function joinChannel() {
+    const ch = channelInput.value.trim();
+    if (!ch) {
+      alert("يرجى إدخال رقم القناة أولاً.");
+      return;
+    }
+
+    if (peer) peer.destroy(); // إعادة تهيئة الشبكة إذا تغيرت القناة
+
+    currentChannel = ch;
+    channelDisplay.innerText = "CH " + ch;
+    statusText.innerText = "جاري البحث عن الشبكة...";
+    led.className = "led-indicator online";
+
+    // ننشئ معرّف الجهاز بناءً على رقم القناة لتتعرف الأجهزة على بعضها
+    // سيقوم الجهاز بالاتصال تلقائياً بالجهاز الآخر الذي أدخل نفس القناة
+    const peerIdA = "radio-channel-" + ch + "-nodeA";
+    const peerIdB = "radio-channel-" + ch + "-nodeB";
+
+    // محاولة التسجيل باسم nodeA أولاً
+    peer = new Peer(peerIdA, {
+      config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+    });
+
+    peer.on('open', () => {
+      setupRadioEvents();
+      statusText.innerText = "القناة نشطة. بانتظار الجهاز 2...";
+    });
+
+    // إذا كان nodeA محجوزاً (الجهاز الأول فتحه)، يسجل الجهاز الحالي باسم nodeB ويتصل فوراً بـ nodeA
+    peer.on('error', (err) => {
+      if (err.type === 'unavailable-id') {
+        peer = new Peer(peerIdB, {
+          config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+        });
+
+        peer.on('open', () => {
+          setupRadioEvents();
+          // اتصال مباشر بالجهاز الأول (nodeA)
+          connectToPeer(peerIdA);
+        });
+      } else {
+        statusText.innerText = "خطأ في الاتصال بالقناة";
+        led.className = "led-indicator";
       }
     });
+  }
 
-    peer.on('open', (id) => {
-      myIdEl.innerText = id;
-      statusEl.innerText = "جاهز للاتصال بنجاح.";
-    });
-
-    // استقبال المكالمات الواردة من الجهاز الثاني
+  // 3. ربط أحداث اللاسلكي واستقبال المكالمات
+  function setupRadioEvents() {
     peer.on('call', (call) => {
-      statusEl.innerText = "جاري استقبال مكالمة واردة...";
-      call.answer(localStream); // الرد وتمرير الصوت المحلي
-
+      activeCall = call;
+      call.answer(localStream);
+      
       call.on('stream', (remoteStream) => {
-        playRemoteAudio(remoteStream);
+        setupRemoteAudio(remoteStream);
       });
 
-      call.on('error', (err) => {
-        handleError("حدث خطأ أثناء المكالمة: " + err.message);
-      });
-    });
-
-    peer.on('error', (err) => {
-      handleError("خطأ في الاتصال: " + err.message);
+      call.on('close', () => resetRadioState());
     });
   }
 
-  // 3. إجراء الاتصال بالجهاز الثاني
-  function makeCall() {
-    const targetId = document.getElementById('peer-id-input').value.trim();
-
-    if (!targetId) {
-      alert("يرجى أدخال رقم الجهاز الآخر أولاً.");
-      return;
-    }
-
-    if (targetId === myIdEl.innerText) {
-      alert("لا يمكنك الاتصال بنفس الرقم!");
-      return;
-    }
-
-    setLoading(true, "جاري الاتصال...");
-
+  // إجراء الاتصال بين NodeB و NodeA
+  function connectToPeer(targetId) {
+    statusText.innerText = "جاري الربط مع القناة...";
     const call = peer.call(targetId, localStream);
+    activeCall = call;
 
     call.on('stream', (remoteStream) => {
-      playRemoteAudio(remoteStream);
+      setupRemoteAudio(remoteStream);
     });
 
-    call.on('error', (err) => {
-      handleError("فشل الاتصال بالجهاز الآخر.");
-    });
-
-    // مهلة زمنية لإيقاف التحميل إذا لم يتم الرد
-    setTimeout(() => {
-      if (connectBtn.disabled && remoteAudio.srcObject === null) {
-        handleError("لم يتم الرد أو المعرّف غير صحيح.");
-      }
-    }, 10000);
+    call.on('close', () => resetRadioState());
   }
 
-  // 4. تشغيل الصوت وحل مشكلة منع التشغيل التلقائي من المتصفح
-  function playRemoteAudio(stream) {
+  // 4. إعداد تشغيل الصوت القادم من اللاسلكي الآخر
+  function setupRemoteAudio(stream) {
     remoteAudio.srcObject = stream;
-    
-    // محاولة تشغيل الصوت وحل حظر المتصفح (Autoplay Policy)
     remoteAudio.play().then(() => {
-      setLoading(false, "تم الاتصال وبدء نقل الصوت بنجاح!");
-    }).catch((err) => {
-      console.warn("حظر المتصفح التشغيل التلقائي:", err);
-      setLoading(false, "اضغط في أي مكان على الصفحة لسماع الصوت.");
-      
-      // التفاعل مع الصفحة لتفعيل الصوت
-      document.body.addEventListener('click', () => {
-        remoteAudio.play();
-      }, { once: true });
+      onConnectedSuccess();
+    }).catch(() => {
+      // التعامل مع منع التشغيل التلقائي عبر ضغطة زر اللاسلكي
+      statusText.innerText = "اضغط PTT لتفعيل الصوت";
+      document.body.addEventListener('click', () => remoteAudio.play(), { once: true });
+      onConnectedSuccess();
     });
   }
 
-  // إدارة حالة التحميل
-  function setLoading(isLoading, message) {
-    statusEl.innerText = message;
-    if (isLoading) {
-      connectBtn.disabled = true;
-      connectBtn.innerHTML = 'جاري الاتصال... <span class="spinner"></span>';
-    } else {
-      connectBtn.disabled = false;
-      connectBtn.innerHTML = 'اتصال';
+  function onConnectedSuccess() {
+    statusText.innerText = "تم الاتصال! اضغط PTT للتحدث";
+    led.className = "led-indicator connected";
+    pttBtn.disabled = false;
+  }
+
+  function resetRadioState() {
+    statusText.innerText = "انقطع الاتصال بالجهاز الآخر";
+    led.className = "led-indicator online";
+    pttBtn.disabled = true;
+  }
+
+  // 5. التحكم بالمايكروفون (Push To Talk - PTT)
+  function setMicState(enabled) {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = enabled;
+      });
     }
   }
 
-  function handleError(message) {
-    setLoading(false, message);
+  function startTalking() {
+    if (pttBtn.disabled) return;
+    setMicState(true);
+    pttBtn.classList.add('active');
+    led.className = "led-indicator transmitting";
+    statusText.innerText = "جاري الإرسال (تتحدث الآن)...";
   }
 
-  // البدء عند تحميل الصفحة
+  function stopTalking() {
+    if (pttBtn.disabled) return;
+    setMicState(false);
+    pttBtn.classList.remove('active');
+    led.className = "led-indicator connected";
+    statusText.innerText = "تم الإرسال. استماع...";
+  }
+
+  // أحداث الزر (دعم اللمس للهواتف والماوس للكمبيوتر)
+  pttBtn.addEventListener('mousedown', startTalking);
+  pttBtn.addEventListener('mouseup', stopTalking);
+  pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); });
+  pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
+
   window.onload = initMedia;
 </script>
 
