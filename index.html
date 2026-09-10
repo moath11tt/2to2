@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>جهاز لاسلكي فريق التوعية الميداني</title>
+    <title>لاسلكي فريق التوعية الميداني</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PeerJS -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- PubNub SDK لتوصيل الأجهزة ببعضها فوراً -->
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -82,13 +82,13 @@
 
     <div class="relative w-full max-w-sm">
         
-        <!-- الهوائي (Antenna) -->
+        <!-- الهوائي -->
         <div class="w-5 h-16 bg-gray-800 mx-auto rounded-t-md border-t border-gray-600 relative z-0 -mb-2"></div>
 
         <!-- جسم اللاسلكي -->
         <div class="walkie-body relative z-10 rounded-3xl p-5 flex flex-col items-center border border-gray-700">
             
-            <!-- الجزء العلوِي والمعلومات -->
+            <!-- الهيدر -->
             <div class="w-full flex justify-between items-center mb-3 px-1">
                 <div class="flex items-center gap-2">
                     <div id="ledIndicator" class="w-3.5 h-3.5 rounded-full led-off"></div>
@@ -99,19 +99,19 @@
                 </div>
             </div>
 
-            <!-- الشاشة الرقمية LCD -->
+            <!-- الشاشة الرقمية -->
             <div class="lcd-screen w-full rounded-2xl p-3 mb-4 flex flex-col justify-between h-28 relative overflow-hidden">
                 <div class="flex justify-between items-center text-xs">
                     <span>القناة: <strong id="channelDisplay" class="text-xl">---</strong></span>
-                    <span id="batteryIcon" class="text-xs text-emerald-400"><i class="fa-solid fa-battery-full"></i> 100%</span>
+                    <span id="batteryIcon" class="text-xs text-emerald-400"><i class="fa-solid fa-wifi"></i> ONLINE</span>
                 </div>
                 <div class="text-center my-auto">
                     <div id="screenStatus" class="text-sm font-bold">أدخل رقم القناة للبدء</div>
                     <div id="speakerInfo" class="text-xs text-amber-300 font-semibold mt-1 h-4"></div>
                 </div>
                 <div class="flex justify-between items-center text-[10px] opacity-75">
-                    <span>WALKIE-TALKIE MOBILE</span>
-                    <span><i class="fa-solid fa-signal"></i> SECURE</span>
+                    <span>RADIO VER 3.0</span>
+                    <span><i class="fa-solid fa-shield-halved"></i> READY</span>
                 </div>
             </div>
 
@@ -127,10 +127,10 @@
                 </div>
             </div>
 
-            <!-- أزرار التحدث المخصصة للهاتف -->
+            <!-- أزرار التحكم -->
             <div id="controlSection" class="w-full flex flex-col items-center gap-3 mb-4 hidden">
                 
-                <!-- 1. زر الضغط المطول (Hold PTT Button) -->
+                <!-- 1. زر الضغط المطول -->
                 <button id="pttBtn" 
                     onmousedown="startTalking(event)" onmouseup="stopTalking(event)"
                     ontouchstart="startTalking(event)" ontouchend="stopTalking(event)"
@@ -140,16 +140,16 @@
                     <span class="text-[9px] opacity-80 mt-0.5">(للتحدث)</span>
                 </button>
 
-                <!-- أزرار التلفون الإضافية -->
+                <!-- أزرار التلفون -->
                 <div class="w-full grid grid-cols-2 gap-2 mt-1">
-                    <!-- 2. زر تشغيل/إيقاف تثبيت التحدث -->
+                    <!-- 2. زر تشغيل/إيقاف تثبيت المايك -->
                     <button id="toggleBtn" onclick="toggleTalking()" 
                         class="btn-toggle py-3 px-2 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
                         <i class="fa-solid fa-power-off text-sm"></i>
                         <span id="toggleText">تثبيت المايك (ON)</span>
                     </button>
 
-                    <!-- 3. زر صوت تنبيه طوارئ (SOS Tone) -->
+                    <!-- 3. زر نداء تنبيه SOS -->
                     <button onclick="sendAlertSignal()" 
                         class="btn-sos py-3 px-2 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
                         <i class="fa-solid fa-triangle-exclamation text-sm"></i>
@@ -163,165 +163,154 @@
             <div class="speaker-grille w-full h-14 rounded-xl border border-gray-800 mb-3"></div>
 
             <div class="text-[10px] text-gray-500 text-center">
-                <i class="fa-solid fa-mobile-screen text-emerald-500 me-1"></i> مصمم للعمل الميداني عبر التلفون
+                <i class="fa-solid fa-mobile-screen text-emerald-500 me-1"></i> جهاز التواصل الميداني - فريق التوعية
             </div>
         </div>
     </div>
 
-    <!-- مشغل الصوتيات -->
-    <audio id="audioElement" autoplay></audio>
-
     <script>
-        let peer = null;
-        let localStream = null;
+        let pubnub = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
         let currentChannel = null;
         let isBroadcasting = false;
         let isToggleActive = false;
-        
-        // المحرك الصوتي لمؤثرات اللاسلكي
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let noiseNode = null;
+        let myUuid = "user_" + Math.floor(Math.random() * 10000);
 
-        // توليد الأصوات الخاصة باللاسلكي (Squelch, Roger Beep, Static Noise)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // أصوات اللاسلكي
         function playWalkieSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             const now = audioCtx.currentTime;
 
             if (type === 'start') {
-                // صوت "كبسة وفشة" اللاسلكي عند البدء (Squelch Chirp)
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(1200, now);
                 osc.frequency.exponentialRampToValueAtTime(400, now + 0.08);
-                
                 gain.gain.setValueAtTime(0.15, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-                
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start(now);
                 osc.stop(now + 0.08);
-
-                // بدء تشغيل تشويش الخفيّف أثناء التحدث (Static Noise)
-                startStaticNoise();
-
             } else if (type === 'stop') {
-                // إيقاف صوت التشويش
-                stopStaticNoise();
-
-                // صوت انقطاع التحدث اللاسلكي (Roger Beep)
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(600, now);
                 osc.frequency.setValueAtTime(1200, now + 0.05);
-                
                 gain.gain.setValueAtTime(0.12, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-                
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start(now);
                 osc.stop(now + 0.12);
-
             } else if (type === 'sos') {
-                // صوت نداء طوارئ
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(800, now);
                 osc.frequency.setValueAtTime(1400, now + 0.15);
-                osc.frequency.setValueAtTime(800, now + 0.3);
-                
                 gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
-                
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start(now);
-                osc.stop(now + 0.45);
+                osc.stop(now + 0.3);
             }
         }
 
-        // إيجاد صوت تشويش خلفية الجهاز اللاسلكي (White Noise)
-        function startStaticNoise() {
-            try {
-                const bufferSize = audioCtx.sampleRate * 0.1;
-                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-
-                noiseNode = audioCtx.createBufferSource();
-                noiseNode.buffer = buffer;
-                noiseNode.loop = true;
-
-                const gain = audioCtx.createGain();
-                gain.gain.value = 0.015; // صوت تشويش خفيف جداً في الخلفية
-
-                noiseNode.connect(gain);
-                gain.connect(audioCtx.destination);
-                noiseNode.start();
-            } catch(e) {}
-        }
-
-        function stopStaticNoise() {
-            if (noiseNode) {
-                try { noiseNode.stop(); } catch(e){}
-                noiseNode = null;
-            }
-        }
-
-        // طلب إذن المايكروفون
+        // إعداد المايكروفون تسجيل الصوت
         async function initMicrophone() {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    if (audioChunks.length > 0) {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            const base64Audio = reader.result;
+                            // إرسال الصوت لجميع الأعضاء في نفس القناة
+                            pubnub.publish({
+                                channel: currentChannel,
+                                message: {
+                                    type: 'audio',
+                                    sender: myUuid,
+                                    audio: base64Audio
+                                }
+                            });
+                        };
+                        audioChunks = [];
+                    }
+                };
             } catch (err) {
-                alert("يرجى إعطاء صلاحية المايكروفون ليعمل اللاسلكي على الهاتف.");
+                alert("يرجى السماح بصلاحية المايكروفون لاستخدام اللاسلكي.");
             }
         }
 
-        // دخول القناة
+        // الانضمام للقناة عبر PubNub
         async function joinChannel() {
             const channelVal = document.getElementById('channelInput').value.trim();
             if (!channelVal) return alert("يرجى كتابة رقم القناة أولاً.");
 
             await initMicrophone();
-            if (!localStream) return;
+            if (!mediaRecorder) return;
 
-            currentChannel = channelVal;
-            document.getElementById('channelDisplay').innerText = currentChannel;
-            document.getElementById('screenStatus').innerText = "جاري الاتصال بالقناة...";
+            currentChannel = "walkie_channel_" + channelVal;
+            document.getElementById('channelDisplay').innerText = channelVal;
+            document.getElementById('screenStatus').innerText = "جاري شبك القناة...";
 
-            const myPeerId = `awareness-team-${currentChannel}-${Math.floor(1000 + Math.random() * 9000)}`;
-            peer = new Peer(myPeerId);
-
-            peer.on('open', () => {
-                document.getElementById('statusText').innerText = "متصل بالشبكة";
-                document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-green";
-                document.getElementById('screenStatus').innerText = "القناة جاهزة";
-                document.getElementById('setupSection').classList.add('hidden');
-                document.getElementById('controlSection').classList.remove('hidden');
-                playWalkieSound('start');
-                setTimeout(() => stopStaticNoise(), 200);
+            // إعداد خادم التوصيل المجاني المباشر
+            pubnub = new PubNub({
+                publishKey: "pub-c-8a1599fa-7e61-460d-a36c-9a4f49491fb3",
+                subscribeKey: "sub-c-1a221f05-ff34-4bc3-959c-ee1d8213601f",
+                uuid: myUuid
             });
 
-            peer.on('call', (call) => {
-                call.answer();
-                call.on('stream', (remoteStream) => {
-                    document.getElementById('audioElement').srcObject = remoteStream;
-                    playWalkieSound('start');
-                    document.getElementById('speakerInfo').innerText = "🔊 رسالة لاسلكية واردة...";
-                    document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-amber";
-                });
-                call.on('close', () => {
-                    document.getElementById('speakerInfo').innerText = "";
-                    document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-green";
-                    playWalkieSound('stop');
-                });
+            pubnub.subscribe({ channels: [currentChannel] });
+
+            pubnub.addListener({
+                message: (m) => {
+                    const data = m.message;
+                    // استقبال الصوت إذا كان من جهاز آخر
+                    if (data.type === 'audio' && data.sender !== myUuid) {
+                        playWalkieSound('start');
+                        const audio = new Audio(data.audio);
+                        document.getElementById('speakerInfo').innerText = "🔊 رسالة لاسلكية واردة...";
+                        document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-amber";
+                        
+                        audio.play();
+                        audio.onended = () => {
+                            document.getElementById('speakerInfo').innerText = "";
+                            document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-green";
+                            playWalkieSound('stop');
+                        };
+                    } else if (data.type === 'sos' && data.sender !== myUuid) {
+                        playWalkieSound('sos');
+                        document.getElementById('speakerInfo').innerText = "⚠️ تنبيه SOS من عضو آخر!";
+                        setTimeout(() => { document.getElementById('speakerInfo').innerText = ""; }, 3000);
+                    }
+                },
+                status: (s) => {
+                    if (s.category === "PNConnectedCategory") {
+                        document.getElementById('statusText').innerText = "متصل بالشبكة";
+                        document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-green";
+                        document.getElementById('screenStatus').innerText = "القناة جاهزة";
+                        document.getElementById('setupSection').classList.add('hidden');
+                        document.getElementById('controlSection').classList.remove('hidden');
+                        playWalkieSound('start');
+                    }
+                }
             });
         }
 
@@ -331,27 +320,34 @@
             if (isBroadcasting) return;
 
             isBroadcasting = true;
+            audioChunks = [];
+            if (mediaRecorder && mediaRecorder.state === "inactive") {
+                mediaRecorder.start();
+            }
+
             document.getElementById('pttBtn').classList.add('active');
             document.getElementById('screenStatus').innerText = "🎙️ أنت تتحدث الآن...";
             document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-red";
-            
             playWalkieSound('start');
         }
 
-        // إيقاف التحدث
+        // إيقاف التحدث وإرسال الصوت
         function stopTalking(e) {
             if (e && e.preventDefault) e.preventDefault();
             if (!isBroadcasting || isToggleActive) return;
 
             isBroadcasting = false;
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+            }
+
             document.getElementById('pttBtn').classList.remove('active');
             document.getElementById('screenStatus').innerText = "القناة جاهزة";
             document.getElementById('ledIndicator').className = "w-3.5 h-3.5 rounded-full led-green";
-            
             playWalkieSound('stop');
         }
 
-        // زر التثبيت والتحدث المستمر (Toggle)
+        // زر تثبيت المايك
         function toggleTalking() {
             const btn = document.getElementById('toggleBtn');
             const text = document.getElementById('toggleText');
@@ -369,13 +365,15 @@
             }
         }
 
-        // زر إرسال نداء SOS
+        // نداء SOS
         function sendAlertSignal() {
             playWalkieSound('sos');
-            document.getElementById('speakerInfo').innerText = "⚠️ تم إرسال نداء تنبيه!";
-            setTimeout(() => {
-                document.getElementById('speakerInfo').innerText = "";
-            }, 2500);
+            if (pubnub && currentChannel) {
+                pubnub.publish({
+                    channel: currentChannel,
+                    message: { type: 'sos', sender: myUuid }
+                });
+            }
         }
     </script>
 </body>
